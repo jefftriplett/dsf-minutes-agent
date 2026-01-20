@@ -1,6 +1,6 @@
 [project]
 name = "dsf-minutes-agent"
-version = "0.1.0"
+version = "2026.1.1"
 description = "DSF Minutes Agent (Unofficial)"
 readme = "README.md"
 requires-python = ">=3.12"
