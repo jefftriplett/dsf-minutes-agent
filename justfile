@@ -8,7 +8,7 @@ export JUST_UNSTABLE := "true"
 
 # Process with the DSF minutes agent
 @agent question *ARGS:
-    uv --quiet run agent.py "{{ question }}" {{ ARGS }}
+    uv --quiet run src/agent.py "{{ question }}" {{ ARGS }}
 
 # Ask the minutes agent a question (use --year/-y to filter by year)
 @ask question *ARGS:
