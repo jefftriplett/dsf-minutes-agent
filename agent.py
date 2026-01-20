@@ -43,13 +43,6 @@ past board decisions, discussions, attendees, and actions.
 - Please warn the user that this is not official or legal advice.
 
 </behavior_guidelines>
-
-<board_minutes>
-
-{minutes}
-
-</board_minutes>
-
 """
 
 
@@ -108,13 +101,15 @@ def get_dsf_minutes_agent(year: int | None = None) -> Agent:
     """Create an agent with DSF board meeting minutes loaded."""
     minutes = load_minutes(year=year)
 
-    system_prompt = SYSTEM_PROMPT.format(minutes=minutes)
-
     agent = Agent(
         model=OPENAI_MODEL_NAME,
         output_type=Output,
-        system_prompt=system_prompt,
+        system_prompt=SYSTEM_PROMPT,
     )
+
+    @agent.instructions
+    def add_board_minutes() -> str:
+        return f"<board_minutes>\n\n{minutes}\n\n</board_minutes>"
 
     return agent
 
