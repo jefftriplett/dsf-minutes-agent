@@ -19,7 +19,7 @@ $ just ask "Who are the 2026 board officers?" --year 2025
 $ just ask "Did the DSF change any bylaws in 2025?" --year 2025
 
 # Or run the agent directly
-$ uv run agent.py "Who attended the most recent meeting?" --year 2025
+$ uv run src/agent.py "Who attended the most recent meeting?" --year 2025
 ```
 
 ## Installation
