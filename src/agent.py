@@ -17,8 +17,9 @@ from pathlib import Path
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic_ai import Agent
-from rich import print
+from rich.console import Console
 
+console = Console()
 
 OPENAI_API_KEY: str = env.str("OPENAI_API_KEY")
 OPENAI_MODEL_NAME: str = env.str("OPENAI_MODEL_NAME", default="gpt-5-mini")
@@ -114,7 +115,11 @@ def get_dsf_minutes_agent(year: int | None = None) -> Agent:
     return agent
 
 
-def main(
+app = typer.Typer(help="DSF Minutes Agent - Ask questions about DSF board meeting minutes")
+
+
+@app.command()
+def ask(
     question: str,
     year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
 ):
@@ -122,20 +127,34 @@ def main(
     agent = get_dsf_minutes_agent(year=year)
 
     year_info = f" ({year} only)" if year else " (all years)"
-    print(f"[dim]Loading minutes{year_info}...[/dim]\n")
+    console.print(f"[dim]Loading minutes{year_info}...[/dim]\n")
 
     result = agent.run_sync(question)
 
-    print(
+    console.print(
         f"[green][bold]Answer:[/bold][/green] {result.output.answer}\n\n"
         f"[yellow][bold]Reasoning:[/bold][/yellow] {result.output.reasoning}\n"
     )
 
     if result.output.meetings:
-        print("[cyan][bold]Meetings Referenced:[/bold][/cyan]")
+        console.print("[cyan][bold]Meetings Referenced:[/bold][/cyan]")
         for meeting in result.output.meetings:
-            print(f"  - {meeting}")
+            console.print(f"  - {meeting}")
+
+
+@app.command()
+def debug(
+    year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
+):
+    """Print the compiled system prompt for debugging."""
+    minutes = load_minutes(year=year)
+
+    console.print("[bold cyan]===== SYSTEM PROMPT =====[/bold cyan]\n")
+    console.print(SYSTEM_PROMPT)
+    console.print("\n[bold cyan]===== INSTRUCTIONS =====[/bold cyan]\n")
+    console.print(f"<board_minutes>\n\n{minutes}\n\n</board_minutes>")
+    console.print("\n[bold cyan]=========================[/bold cyan]")
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    app()

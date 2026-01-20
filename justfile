@@ -6,13 +6,13 @@ export JUST_UNSTABLE := "true"
 @_default:
     just --list
 
-# Process with the DSF minutes agent
-@agent question *ARGS:
-    uv --quiet run src/agent.py "{{ question }}" {{ ARGS }}
-
 # Ask the minutes agent a question (use --year/-y to filter by year)
 @ask question *ARGS:
-    just agent "{{ question }}" {{ ARGS }}
+    uv --quiet run src/agent.py ask "{{ question }}" {{ ARGS }}
+
+# Print the compiled system prompt for debugging
+@debug *ARGS:
+    uv --quiet run src/agent.py debug {{ ARGS }}
 
 # Install pip and uv package management tools
 @bootstrap *ARGS:
