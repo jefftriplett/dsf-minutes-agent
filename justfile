@@ -26,9 +26,13 @@ export JUST_UNSTABLE := "true"
 @fmt:
     just --fmt
 
-# Run pre-commit checks on files
-@lint *ARGS="--all-files":
-    uv --quiet tool run --with pre-commit-uv pre-commit run {{ ARGS }}
+# Run pre-commit hooks on all files
+@lint *ARGS:
+    uv --quiet tool run prek {{ ARGS }} --all-files
+
+# Update pre-commit hooks to latest versions
+@lint-autoupdate:
+    uv --quiet tool run prek autoupdate
 
 # Sync the dsf-minutes repository
 @sync:
