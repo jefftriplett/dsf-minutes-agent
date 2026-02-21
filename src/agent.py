@@ -4,6 +4,7 @@
 # dependencies = [
 #     "environs",
 #     "pydantic-ai-slim[openai]",
+#     "pydantic-ai-slim[web]",
 #     "rich",
 #     "typer",
 # ]
@@ -98,13 +99,13 @@ def load_minutes(year: int | None = None) -> str:
     return "\n\n---\n\n".join(minutes_content)
 
 
-def get_dsf_minutes_agent(year: int | None = None) -> Agent:
+def get_agent(year: int | None = None, *, output_type=Output) -> Agent:
     """Create an agent with DSF board meeting minutes loaded."""
     minutes = load_minutes(year=year)
 
     agent = Agent(
         model=OPENAI_MODEL_NAME,
-        output_type=Output,
+        output_type=output_type,
         system_prompt=SYSTEM_PROMPT,
     )
 
@@ -124,7 +125,7 @@ def ask(
     year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
 ):
     """Ask questions about DSF board meeting minutes."""
-    agent = get_dsf_minutes_agent(year=year)
+    agent = get_agent(year=year)
 
     year_info = f" ({year} only)" if year else " (all years)"
     console.print(f"[dim]Loading minutes{year_info}...[/dim]\n")
@@ -140,6 +141,22 @@ def ask(
         console.print("[cyan][bold]Meetings Referenced:[/bold][/cyan]")
         for meeting in result.output.meetings:
             console.print(f"  - {meeting}")
+
+
+@app.command()
+def web(
+    year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
+    host: str = "127.0.0.1",
+    port: int = 8080,
+):
+    """Launch the minutes agent as a web chat interface."""
+    import uvicorn
+
+    agent = get_agent(year=year, output_type=None)
+    web_app = agent.to_web()
+
+    console.print(f"[bold green]Starting web interface at http://{host}:{port}[/bold green]")
+    uvicorn.run(web_app, host=host, port=port)
 
 
 @app.command()
