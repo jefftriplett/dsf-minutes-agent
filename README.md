@@ -23,6 +23,7 @@ uv run src/agent.py ask "Who attended the most recent meeting?" --year 2025
 |---------|-------------|
 | `just` | List all available commands |
 | `just ask "<question>" [--year YYYY]` | Ask the minutes agent a question |
+| `just web [--year YYYY]` | Launch the agent as a web chat interface |
 | `just debug [--year YYYY]` | Print the compiled system prompt for debugging |
 | `just demo` | Run a demo with a sample question |
 | `just sync` | Pull latest minutes from GitHub |
