@@ -118,7 +118,10 @@ def get_agent(year: int | None = None, *, output_type=Output) -> Agent:
     return agent
 
 
-app = typer.Typer(help="DSF Minutes Agent - Ask questions about DSF board meeting minutes")
+app = typer.Typer(
+    help="DSF Minutes Agent - Ask questions about DSF board meeting minutes",
+    no_args_is_help=True,
+)
 
 
 @app.command()
