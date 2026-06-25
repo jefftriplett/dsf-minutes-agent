@@ -3,8 +3,8 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "environs",
-#     "pydantic-ai-slim[openai]",
-#     "pydantic-ai-slim[web]",
+#     "pydantic-ai-slim[openai]>=2,<3",
+#     "pydantic-ai-slim[web]>=2,<3",
 #     "rich",
 #     "typer",
 #     "uvicorn",
@@ -25,7 +25,7 @@ from rich.console import Console
 console = Console()
 
 OPENAI_API_KEY: str = env.str("OPENAI_API_KEY")
-OPENAI_MODEL_NAME: str = env.str("OPENAI_MODEL_NAME", default="gpt-5-mini")
+OPENAI_MODEL_NAME: str = env.str("OPENAI_MODEL_NAME", default="openai:gpt-5.4-nano")
 
 MINUTES_REPO_URL = "https://github.com/django/dsf-minutes.git"
 MINUTES_DIR = Path(__file__).parent / "dsf-minutes"
