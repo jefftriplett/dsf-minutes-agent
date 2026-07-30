@@ -43,5 +43,6 @@ returns newest-first so `--limit N` means "the N most recent". `load_minutes()` 
 re-sorts chronologically before handing the documents to the model.
 
 The agent is dependency-managed two ways: the PEP 723 header in `src/agent.py` (what
-`uv run` actually uses) and `pyproject.toml`. Keep both in sync when adding a
-dependency — `pyproject.toml` is currently missing `fastmcp`.
+`uv run` actually uses) and `pyproject.toml`. Keep both lists in sync when adding a
+dependency — only the header affects `just ask`, so a missing entry in `pyproject.toml`
+breaks installs without ever failing locally.

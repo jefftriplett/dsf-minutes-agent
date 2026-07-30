@@ -6,9 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "environs",
+    "fastmcp",
     "pydantic-ai-slim[openai,web]>=2,<3",
     "rich",
     "typer",
+    "uvicorn",
 ]
 
 [tool.ruff]
