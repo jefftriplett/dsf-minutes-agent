@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "environs",
-    "pydantic-ai-slim[openai]>=2,<3",
+    "pydantic-ai-slim[openai,web]>=2,<3",
     "rich",
     "typer",
 ]

@@ -3,7 +3,7 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "environs",
-#     "pydantic-ai-slim[openai]>=2,<3",
+#     "pydantic-ai-slim[openai,web]>=2,<3",
 #     "rich",
 #     "typer",
 #     "uvicorn",
@@ -57,7 +57,9 @@ class Output(BaseModel):
 
 def sync_minutes_repo() -> None:
     """Clone or pull the dsf-minutes repository."""
-    if MINUTES_DIR.exists():
+    # Check for .git, not just the directory — a contentful directory without .git
+    # makes `git -C` resolve to the *parent* repo and pull this agent's own repo.
+    if (MINUTES_DIR / ".git").exists():
         subprocess.run(
             ["git", "-C", str(MINUTES_DIR), "pull", "--quiet"],
             check=True,
@@ -154,7 +156,9 @@ def web(
     port: int = 8080,
 ):
     """Launch the minutes agent as a web chat interface."""
-    agent = get_agent(year=year, output_type=None)
+    # output_type=str keeps replies conversational. Pydantic AI v2 rejects None here —
+    # it reads it as "no output types provided" and raises UserError.
+    agent = get_agent(year=year, output_type=str)
     web_app = agent.to_web()
 
     console.print(f"[bold green]Starting web interface at http://{host}:{port}[/bold green]")
