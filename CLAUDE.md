@@ -34,8 +34,9 @@ Minutes are read from a local git checkout, never over the GitHub API:
 - The guard checks for `src/dsf-minutes/.git`, not just the directory. A contentful
   directory without `.git` would make `git -C` resolve to *this* repo and pull the
   agent's own history
-- `src/dsf-minutes/` is currently committed to this repo rather than gitignored, so
-  `sync` prints a "not a git clone" warning and cannot pull. Loading still works
+- `src/dsf-minutes/` is gitignored and owned entirely by `sync`. If it ever becomes a
+  plain directory of files instead of a clone, `sync` says so and falls back to loading
+  what is there — which silently serves stale minutes. Delete it and re-run `just sync`
 
 Meeting files are named `YYYY-MM-DD.md` under a year directory. `discover_meetings()`
 matches that stem exactly, so templates and drafts in a year directory are skipped, and
