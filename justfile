@@ -49,3 +49,7 @@ export JUST_UNSTABLE := "true"
 # Clone or update the local dsf-minutes checkout
 @sync:
     uv --quiet run src/agent.py sync
+
+# Verify configuration and probe the LLM backend
+@doctor *ARGS:
+    uv --quiet run src/agent.py doctor {{ ARGS }}
