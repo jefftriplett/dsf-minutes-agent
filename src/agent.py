@@ -25,7 +25,7 @@ from rich.console import Console
 console = Console()
 
 OPENAI_API_KEY: str = env.str("OPENAI_API_KEY")
-OPENAI_MODEL_NAME: str = env.str("OPENAI_MODEL_NAME", default="openai:gpt-5.4-nano")
+PYDANTIC_AI_MODEL: str = env.str("PYDANTIC_AI_MODEL", default="openai:gpt-5.4-nano")
 
 MINUTES_REPO_URL = "https://github.com/django/dsf-minutes.git"
 MINUTES_DIR = Path(__file__).parent / "dsf-minutes"
@@ -119,7 +119,7 @@ def get_agent(year: int | None = None, *, output_type=Output) -> Agent:
     minutes = load_minutes(year=year)
 
     agent = Agent(
-        model=OPENAI_MODEL_NAME,
+        model=PYDANTIC_AI_MODEL,
         output_type=output_type,
         system_prompt=SYSTEM_PROMPT,
     )
