@@ -6,9 +6,13 @@ export JUST_UNSTABLE := "true"
 @_default:
     just --list
 
-# Ask the minutes agent a question (use --year/-y to filter by year)
+# Ask the minutes agent a question (use --year/-y and --limit/-n to narrow it)
 @ask question *ARGS:
     uv --quiet run src/agent.py ask "{{ question }}" {{ ARGS }}
+
+# List the board meetings in the local minutes checkout
+@list *ARGS:
+    uv --quiet run src/agent.py list {{ ARGS }}
 
 # Print the compiled system prompt for debugging
 @debug *ARGS:
@@ -42,6 +46,6 @@ export JUST_UNSTABLE := "true"
 @lint-autoupdate:
     uv --quiet tool run prek autoupdate
 
-# Sync the dsf-minutes repository
+# Clone or update the local dsf-minutes checkout
 @sync:
-    cd dsf-minutes && git pull || git clone https://github.com/django/dsf-minutes.git
+    uv --quiet run src/agent.py sync

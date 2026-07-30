@@ -11,6 +11,7 @@
 # ]
 # ///
 
+import re
 import subprocess
 import typer
 import uvicorn
@@ -21,6 +22,7 @@ from pydantic import BaseModel
 from pydantic import Field
 from pydantic_ai import Agent
 from rich.console import Console
+from rich.table import Table
 
 console = Console()
 
@@ -29,6 +31,11 @@ PYDANTIC_AI_MODEL: str = env.str("PYDANTIC_AI_MODEL", default="openai:gpt-5.4-na
 
 MINUTES_REPO_URL = "https://github.com/django/dsf-minutes.git"
 MINUTES_DIR = Path(__file__).parent / "dsf-minutes"
+SITE_URL = "https://django.github.io/dsf-minutes/"
+
+# Meeting files are named YYYY-MM-DD.md. Anything else in a year directory
+# (template.md, notes, drafts) is not a meeting.
+MEETING_STEM_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 SYSTEM_PROMPT = """
 <system_context>
@@ -41,9 +48,10 @@ past board decisions, discussions, attendees, and actions.
 
 <behavior_guidelines>
 
-- Answer questions based on the board meeting minutes provided.
+- Answer questions based only on the board meeting minutes provided.
 - When referencing specific information, cite the meeting date.
-- If information is not found in the minutes, say so clearly.
+- Prefer the most recent meeting when the question is about current state.
+- If information is not found in the minutes, say so clearly rather than guessing.
 - Please warn the user that this is not official or legal advice.
 
 </behavior_guidelines>
@@ -85,17 +93,18 @@ def sync_minutes_repo() -> None:
         )
 
 
-def load_minutes(year: int | None = None) -> str:
-    """Load board meeting minutes from the repository.
+def meeting_url(minutes_file: Path) -> str:
+    """Public URL for a meeting on the published minutes site."""
+    date = minutes_file.stem
+    return f"{SITE_URL}{date[:4]}/{date}/"
+
+
+def discover_meetings(year: int | None = None) -> list[Path]:
+    """Find meeting minutes on disk, newest first.
 
     Args:
-        year: If specified, only load minutes from that year.
-              If None, load all minutes.
+        year: If specified, only look at that year's directory.
     """
-    sync_minutes_repo()
-
-    minutes_content: list[str] = []
-
     if year:
         year_dir = MINUTES_DIR / str(year)
         if not year_dir.exists():
@@ -104,19 +113,42 @@ def load_minutes(year: int | None = None) -> str:
     else:
         search_dirs = [d for d in MINUTES_DIR.iterdir() if d.is_dir() and d.name.isdigit()]
 
-    for year_dir in sorted(search_dirs):
-        for minutes_file in sorted(year_dir.glob("*.md")):
-            if minutes_file.name == "template.md":
-                continue
-            content = minutes_file.read_text()
-            minutes_content.append(f"<!-- Meeting: {minutes_file.name} -->\n{content}")
+    meetings = [
+        minutes_file
+        for year_dir in search_dirs
+        for minutes_file in year_dir.glob("*.md")
+        if MEETING_STEM_RE.match(minutes_file.stem)
+    ]
 
-    return "\n\n---\n\n".join(minutes_content)
+    # Stems are ISO dates, so a plain string sort is a date sort.
+    return sorted(meetings, key=lambda minutes_file: minutes_file.stem, reverse=True)
 
 
-def get_agent(year: int | None = None, *, output_type=Output) -> Agent:
+def load_minutes(year: int | None = None, *, limit: int | None = None) -> str:
+    """Load board meeting minutes from the repository.
+
+    Args:
+        year: If specified, only load minutes from that year.
+              If None, load all minutes.
+        limit: If specified, only load the N most recent meetings.
+    """
+    sync_minutes_repo()
+
+    meetings = discover_meetings(year=year)
+    if limit:
+        meetings = meetings[:limit]
+
+    # Discovery is newest first for --limit; feed the model oldest first so the
+    # minutes read chronologically.
+    return "\n\n---\n\n".join(
+        f"<!-- Meeting: {minutes_file.stem} ({meeting_url(minutes_file)}) -->\n{minutes_file.read_text()}"
+        for minutes_file in sorted(meetings, key=lambda minutes_file: minutes_file.stem)
+    )
+
+
+def get_agent(year: int | None = None, *, limit: int | None = None, output_type=Output) -> Agent:
     """Create an agent with DSF board meeting minutes loaded."""
-    minutes = load_minutes(year=year)
+    minutes = load_minutes(year=year, limit=limit)
 
     agent = Agent(
         model=PYDANTIC_AI_MODEL,
@@ -137,17 +169,23 @@ app = typer.Typer(
 )
 
 
+year_option = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)")
+limit_option = typer.Option(None, "--limit", "-n", help="Only load the N most recent meetings")
+
+
 @app.command()
 def ask(
     question: str,
-    year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
+    year: int | None = year_option,
+    limit: int | None = limit_option,
 ):
     """Ask questions about DSF board meeting minutes."""
-    agent = get_agent(year=year)
+    scope = f"{year} only" if year else "all years"
+    if limit:
+        scope += f", {limit} most recent"
+    console.print(f"[dim]Loading minutes ({scope})...[/dim]\n")
 
-    year_info = f" ({year} only)" if year else " (all years)"
-    console.print(f"[dim]Loading minutes{year_info}...[/dim]\n")
-
+    agent = get_agent(year=year, limit=limit)
     result = agent.run_sync(question)
 
     console.print(
@@ -161,16 +199,42 @@ def ask(
             console.print(f"  - {meeting}")
 
 
+@app.command(name="list")
+def list_meetings(year: int | None = year_option):
+    """List the board meetings available in the local minutes checkout."""
+    sync_minutes_repo()
+    meetings = discover_meetings(year=year)
+
+    table = Table(title=f"DSF Board Meetings ({len(meetings)} total)")
+    table.add_column("Date", style="cyan")
+    table.add_column("URL", style="dim")
+
+    for minutes_file in meetings:
+        table.add_row(minutes_file.stem, meeting_url(minutes_file))
+
+    console.print(table)
+
+
+@app.command()
+def sync():
+    """Clone or update the local dsf-minutes checkout."""
+    sync_minutes_repo()
+    meetings = discover_meetings()
+
+    console.print(f"[green]{len(meetings)} meetings available in {MINUTES_DIR}[/green]")
+
+
 @app.command()
 def web(
-    year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
+    year: int | None = year_option,
+    limit: int | None = limit_option,
     host: str = "127.0.0.1",
     port: int = 8080,
 ):
     """Launch the minutes agent as a web chat interface."""
     # output_type=str keeps replies conversational. Pydantic AI v2 rejects None here —
     # it reads it as "no output types provided" and raises UserError.
-    agent = get_agent(year=year, output_type=str)
+    agent = get_agent(year=year, limit=limit, output_type=str)
     web_app = agent.to_web()
 
     console.print(f"[bold green]Starting web interface at http://{host}:{port}[/bold green]")
@@ -179,10 +243,11 @@ def web(
 
 @app.command()
 def debug(
-    year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
+    year: int | None = year_option,
+    limit: int | None = limit_option,
 ):
     """Print the compiled system prompt for debugging."""
-    minutes = load_minutes(year=year)
+    minutes = load_minutes(year=year, limit=limit)
 
     console.print("[bold cyan]===== SYSTEM PROMPT =====[/bold cyan]\n")
     console.print(SYSTEM_PROMPT)
@@ -194,6 +259,7 @@ def debug(
 @app.command()
 def mcp(
     year: int | None = typer.Option(None, "--year", "-y", help="Filter minutes by year (e.g., 2025)"),
+    limit: int | None = typer.Option(None, "--limit", "-n", help="Only load the N most recent meetings"),
     transport: str = typer.Option("stdio", help="MCP transport: stdio or http"),
     host: str = "127.0.0.1",
     port: int = 8000,
@@ -210,7 +276,7 @@ def mcp(
     def build_agent():
         """Build on first use — loading the documents up front would stall the handshake."""
         if "agent" not in cached:
-            cached["agent"] = get_agent(year=year)
+            cached["agent"] = get_agent(year=year, limit=limit)
         return cached["agent"]
 
     @server.tool
