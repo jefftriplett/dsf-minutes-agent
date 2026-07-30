@@ -56,15 +56,26 @@ class Output(BaseModel):
 
 
 def sync_minutes_repo() -> None:
-    """Clone or pull the dsf-minutes repository."""
-    # Check for .git, not just the directory — a contentful directory without .git
-    # makes `git -C` resolve to the *parent* repo and pull this agent's own repo.
+    """Clone or pull the dsf-minutes repository.
+
+    Syncing is best effort: if the minutes are already on disk, a network or git
+    problem should not stop the agent from answering with what it has.
+    """
+    # Check for .git, not just the directory. A contentful directory without .git makes
+    # `git -C` resolve to the *parent* repo — which pulls this agent's own repository.
     if (MINUTES_DIR / ".git").exists():
-        subprocess.run(
-            ["git", "-C", str(MINUTES_DIR), "pull", "--quiet"],
-            check=True,
-            capture_output=True,
-        )
+        try:
+            subprocess.run(
+                ["git", "-C", str(MINUTES_DIR), "pull", "--quiet"],
+                check=True,
+                capture_output=True,
+            )
+        except subprocess.CalledProcessError as error:
+            console.print(f"[yellow]Could not update the minutes, using the local copy: {error}[/yellow]")
+    elif MINUTES_DIR.exists():
+        # Files are present but this is not a clone, so there is nothing to sync and
+        # cloning into a non-empty directory would fail. Use what is on disk.
+        console.print(f"[yellow]{MINUTES_DIR} is not a git clone — using the files as they are.[/yellow]")
     else:
         subprocess.run(
             ["git", "clone", "--quiet", MINUTES_REPO_URL, str(MINUTES_DIR)],
